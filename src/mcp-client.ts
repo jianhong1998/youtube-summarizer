@@ -37,7 +37,21 @@ export async function checkMCPServer(): Promise<boolean> {
   }
 }
 
-export async function fetchTranscript(videoId: string, lang: string = 'en'): Promise<string> {
+interface TranscriptResponse {
+  title: string;
+  transcript: string;
+  next_cursor?: string;
+}
+
+interface FinalTranscript {
+  title: string;
+  segments: string[];
+}
+
+export async function fetchTranscript(
+  videoId: string,
+  lang: string = 'en'
+): Promise<string> {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
   const transport = new StdioClientTransport({
@@ -58,21 +72,89 @@ export async function fetchTranscript(videoId: string, lang: string = 'en'): Pro
   await client.connect(transport);
 
   try {
-    const result = await client.callTool({
-      name: 'get_transcript',
-      arguments: { url, lang },
-    });
+    let cursor: string | undefined = undefined;
+    let title: string = '';
+    const segments: string[] = [];
+    let pageCount = 0;
+    const MAX_PAGES = 100; // Safety limit
 
-    await client.close();
+    // Keep fetching until no more cursors
+    while (pageCount < MAX_PAGES) {
+      const args: { url: string; lang: string; cursor?: string } = {
+        url,
+        lang,
+      };
+      if (cursor) {
+        args.cursor = cursor;
+      }
 
-    if ('content' in result && Array.isArray(result.content) && result.content.length > 0) {
+      const result = await client.callTool({
+        name: 'get_transcript',
+        arguments: args,
+      });
+
+      if (
+        !('content' in result) ||
+        !Array.isArray(result.content) ||
+        result.content.length === 0
+      ) {
+        throw new Error('No transcript content returned');
+      }
+
       const firstContent = result.content[0];
-      if (firstContent.type === 'text') {
-        return (firstContent as TextContent).text;
+      if (firstContent.type !== 'text') {
+        throw new Error('Invalid content type');
+      }
+
+      const responseText = (firstContent as TextContent).text;
+      const parsed: TranscriptResponse = JSON.parse(responseText);
+
+      console.debug(`[DEBUG] next_cursor: ${parsed.next_cursor}`);
+
+      // Detect if server returned the same cursor we sent (duplicate response)
+      if (cursor && parsed.next_cursor === cursor) {
+        console.error(
+          'Warning: Server returned same cursor, stopping pagination'
+        );
+        break;
+      }
+
+      // Save title from first response
+      if (!title && parsed.title) {
+        title = parsed.title;
+      }
+
+      // Add segment
+      if (parsed.transcript) {
+        segments.push(parsed.transcript);
+      }
+
+      pageCount++;
+      console.error(
+        `Fetched page ${pageCount}, segments collected: ${segments.length}`
+      );
+
+      // Check for next page
+      if (parsed.next_cursor) {
+        cursor = parsed.next_cursor;
+      } else {
+        // No more pages
+        break;
       }
     }
 
-    throw new Error('No transcript content returned');
+    if (pageCount >= MAX_PAGES) {
+      console.error('Warning: Reached maximum page limit');
+    }
+
+    await client.close();
+
+    const finalResult: FinalTranscript = {
+      title,
+      segments,
+    };
+
+    return JSON.stringify(finalResult, null, 2);
   } catch (error) {
     await client.close();
     throw error;
