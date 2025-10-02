@@ -75,10 +75,15 @@ Format:
 ```json
 {
   "title": "Video Title",
-  "transcript": "Full transcript text...",
-  "next_cursor": null
+  "segments": [
+    "First segment of transcript...",
+    "Second segment of transcript...",
+    "..."
+  ]
 }
 ```
+
+**Note:** The tool automatically handles pagination for long videos, fetching all transcript segments until completion. Each segment represents a page returned by the YouTube transcript API, stored as separate strings in the `segments` array.
 
 ## Common Errors
 
@@ -112,11 +117,13 @@ youtube-summarizer/
    ```bash
    make transcript url="<youtube-url>" lang=zh
    ```
+   The tool automatically fetches all pages for long videos.
 
 2. **Read saved file** (zero API cost):
    ```
    Read temp/transcripts/{timestamp}-{videoId}.json
    ```
+   The JSON contains `title` and `segments` array with all transcript parts.
 
 3. **Process with AI** (use transcript content for summarization, analysis, etc.)
 
