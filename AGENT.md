@@ -22,7 +22,7 @@ When you need YouTube video transcripts:
 
 - Handles ONE URL at a time (fails if multiple URLs provided)
 - Validates YouTube URL format before fetching
-- Checks MCP docker container is running (`docker run --rm -i mcp/youtube-transcript`)
+- Checks MCP docker container is running (`docker run --rm -i mcp/youtube-transcript --response-limit -1`)
 - Saves to `temp/transcripts/{timestamp}-{videoId}.json`
 - Overwrites existing files with same name
 

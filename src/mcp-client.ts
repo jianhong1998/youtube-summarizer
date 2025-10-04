@@ -56,7 +56,14 @@ export async function fetchTranscript(
 
   const transport = new StdioClientTransport({
     command: 'docker',
-    args: ['run', '--rm', '-i', 'mcp/youtube-transcript'],
+    args: [
+      'run',
+      '--rm',
+      '-i',
+      'mcp/youtube-transcript',
+      '--response-limit',
+      '-1',
+    ],
   });
 
   const client = new Client(
@@ -80,12 +87,12 @@ export async function fetchTranscript(
 
     // Keep fetching until no more cursors
     while (pageCount < MAX_PAGES) {
-      const args: { url: string; lang: string; cursor?: string } = {
+      const args: { url: string; lang: string; next_cursor?: string } = {
         url,
         lang,
       };
       if (cursor) {
-        args.cursor = cursor;
+        args.next_cursor = cursor;
       }
 
       const result = await client.callTool({

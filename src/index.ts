@@ -37,7 +37,9 @@ async function main() {
   const serverRunning = await checkMCPServer();
   if (!serverRunning) {
     console.error('Error: MCP server is not running');
-    console.error('Start it with: docker run --rm -i mcp/youtube-transcript');
+    console.error(
+      'Start it with: docker run --rm -i mcp/youtube-transcript --response-limit -1'
+    );
     process.exit(1);
   }
 
